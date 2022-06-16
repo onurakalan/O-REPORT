@@ -1,0 +1,16 @@
+TABLES: mdtb, marc,mara.
+
+SELECTION-SCREEN : BEGIN OF BLOCK b1 WITH FRAME.
+  SELECT-OPTIONS : s_matnr FOR mara-matnr,
+                   s_matkl FOR mara-matkl,
+                   s_dat00 FOR mdtb-dat00.
+
+
+  SELECTION-SCREEN SKIP.
+  SELECT-OPTIONS : s_werks FOR marc-werks NO-EXTENSION NO INTERVALS OBLIGATORY." DEFAULT '1000'.
+  SELECTION-SCREEN SKIP.
+
+  PARAMETERS :
+    p_detay RADIOBUTTON GROUP r1 DEFAULT 'X',
+    p_ozet  RADIOBUTTON GROUP r1.
+SELECTION-SCREEN : END OF BLOCK b1.
