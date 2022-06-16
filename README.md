@@ -1,2 +1,3 @@
 # O-REPORT
-Örnek Rapor
+Toplu MRP Raporu
+Rapor işlerinde template olarak da kullanılabilir.
