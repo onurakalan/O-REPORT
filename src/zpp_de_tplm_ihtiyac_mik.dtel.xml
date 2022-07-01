@@ -3,18 +3,17 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <DD04V>
-    <ROLLNAME>ZPP_DE_SAT_MIK</ROLLNAME>
+    <ROLLNAME>ZPP_DE_TPLM_IHTIYAC_MIK</ROLLNAME>
     <DDLANGUAGE>T</DDLANGUAGE>
     <DOMNAME>MENGE</DOMNAME>
     <HEADLEN>55</HEADLEN>
     <SCRLEN1>10</SCRLEN1>
     <SCRLEN2>20</SCRLEN2>
     <SCRLEN3>40</SCRLEN3>
-    <DDTEXT>Sat Miktarı</DDTEXT>
-    <REPTEXT>SAT Miktarı</REPTEXT>
-    <SCRTEXT_S>SAT Miktar</SCRTEXT_S>
-    <SCRTEXT_M>SAT Miktarı</SCRTEXT_M>
-    <SCRTEXT_L>SAT Miktarı</SCRTEXT_L>
+    <DDTEXT>Toplam İhtiyaç Miktarı</DDTEXT>
+    <REPTEXT>Toplam İhtiyaç Miktarı</REPTEXT>
+    <SCRTEXT_M>Toplam İhtiyaç Mikta</SCRTEXT_M>
+    <SCRTEXT_L>Toplam İhtiyaç Miktarı</SCRTEXT_L>
     <DTELMASTER>T</DTELMASTER>
     <REFKIND>D</REFKIND>
    </DD04V>
@@ -24,11 +23,10 @@
    <DD04_TEXTS>
     <item>
      <DDLANGUAGE>E</DDLANGUAGE>
-     <DDTEXT>Purhase Request Qty</DDTEXT>
-     <REPTEXT>Purhase Request Qty</REPTEXT>
-     <SCRTEXT_S>PR Qty</SCRTEXT_S>
-     <SCRTEXT_M>Purhase Request Qty</SCRTEXT_M>
-     <SCRTEXT_L>Purhase Request Qty</SCRTEXT_L>
+     <DDTEXT>Total Requirement Qty</DDTEXT>
+     <REPTEXT>Total Requirement Qty</REPTEXT>
+     <SCRTEXT_M>Total Requirement Qt</SCRTEXT_M>
+     <SCRTEXT_L>Total Requirement Qty</SCRTEXT_L>
     </item>
    </DD04_TEXTS>
   </asx:values>

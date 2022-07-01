@@ -3,18 +3,18 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <DD04V>
-    <ROLLNAME>ZPP_DE_SAT_MIK</ROLLNAME>
+    <ROLLNAME>ZPP_DE_SAT_CAGRI_MIK</ROLLNAME>
     <DDLANGUAGE>T</DDLANGUAGE>
     <DOMNAME>MENGE</DOMNAME>
     <HEADLEN>55</HEADLEN>
     <SCRLEN1>10</SCRLEN1>
     <SCRLEN2>20</SCRLEN2>
     <SCRLEN3>40</SCRLEN3>
-    <DDTEXT>Sat Miktarı</DDTEXT>
-    <REPTEXT>SAT Miktarı</REPTEXT>
-    <SCRTEXT_S>SAT Miktar</SCRTEXT_S>
-    <SCRTEXT_M>SAT Miktarı</SCRTEXT_M>
-    <SCRTEXT_L>SAT Miktarı</SCRTEXT_L>
+    <DDTEXT>Sat cagri Miktarı</DDTEXT>
+    <REPTEXT>Sat Çağrı Miktarı</REPTEXT>
+    <SCRTEXT_S>Sat Çağrı</SCRTEXT_S>
+    <SCRTEXT_M>Sat Çağrı Miktarı</SCRTEXT_M>
+    <SCRTEXT_L>Sat Çağrı Miktarı</SCRTEXT_L>
     <DTELMASTER>T</DTELMASTER>
     <REFKIND>D</REFKIND>
    </DD04V>
@@ -24,11 +24,11 @@
    <DD04_TEXTS>
     <item>
      <DDLANGUAGE>E</DDLANGUAGE>
-     <DDTEXT>Purhase Request Qty</DDTEXT>
-     <REPTEXT>Purhase Request Qty</REPTEXT>
-     <SCRTEXT_S>PR Qty</SCRTEXT_S>
-     <SCRTEXT_M>Purhase Request Qty</SCRTEXT_M>
-     <SCRTEXT_L>Purhase Request Qty</SCRTEXT_L>
+     <DDTEXT>Purchase Request Call</DDTEXT>
+     <REPTEXT>Purchase Request Call</REPTEXT>
+     <SCRTEXT_S>PR Call</SCRTEXT_S>
+     <SCRTEXT_M>Purchase Requst Call</SCRTEXT_M>
+     <SCRTEXT_L>Purchase Request Call</SCRTEXT_L>
     </item>
    </DD04_TEXTS>
   </asx:values>

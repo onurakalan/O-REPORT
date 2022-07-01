@@ -3,9 +3,16 @@
 *___Class Main ______________________________________________________*
 CLASS lcl_main DEFINITION .
   PUBLIC SECTION .
+    TYPES: BEGIN OF ty_main,
+             matnr TYPE matnr,
+             werks TYPE werks_d,
+             matkl TYPE matkl,
+             dispo TYPE dispo,
+           END OF ty_main.
 
     TYPES :
-        tt_mrp_report TYPE STANDARD TABLE OF zpp_s_mrp_report WITH DEFAULT KEY.
+      tt_mrp_report TYPE STANDARD TABLE OF zpp_s_mrp_report WITH DEFAULT KEY,
+      tt_main       TYPE STANDARD TABLE OF ty_main WITH DEFAULT KEY.
 
     DATA :
       mt_data_ozet  TYPE tt_mrp_report,
@@ -19,6 +26,15 @@ CLASS lcl_main DEFINITION .
       get_data_ozet,
       filter_data.
 
+    CLASS-METHODS:
+      date_get_week
+        IMPORTING
+          i_date        TYPE  scdatum
+        RETURNING
+          VALUE(r_week) TYPE kweek
+        EXCEPTIONS
+          date_invalid.
+
   PRIVATE SECTION.
     CONSTANTS : mc_red(4)    VALUE '@0A@',
                 mc_yellow(4) VALUE '@09@',
@@ -26,12 +42,12 @@ CLASS lcl_main DEFINITION .
     METHODS:
       get_data_from_mard
         IMPORTING
-          it_mara        TYPE mara_tt
+          it_mara        TYPE tt_main
         RETURNING
           VALUE(rt_mard) TYPE mard_tt,
       get_data_from_makt
         IMPORTING
-          it_mara        TYPE mara_tt
+          it_mara        TYPE tt_main
         RETURNING
           VALUE(rt_makt) TYPE makt_itab,
       modify_data
@@ -39,9 +55,9 @@ CLASS lcl_main DEFINITION .
           it_mard TYPE mard_tt
         CHANGING
           ct_data TYPE lcl_main=>tt_mrp_report,
-      get_data_from_mara
+      get_data_from_material
         RETURNING
-          VALUE(rt_mara) TYPE mara_tt.
+          VALUE(rt_mara) TYPE tt_main.
 
 
 ENDCLASS.
@@ -52,6 +68,8 @@ CLASS lcl_event_handler DEFINITION .
     DATA : mv_event(3).
     "SEL : selection screen
     "HDR : Header
+
+
 
     METHODS:
       constructor
@@ -67,6 +85,17 @@ CLASS lcl_event_handler DEFINITION .
         IMPORTING e_object e_interactive,
       after_refresh FOR EVENT after_refresh OF cl_gui_alv_grid
         IMPORTING sender .
+
+  PRIVATE SECTION.
+    DATA :
+      _mv_sw_sum TYPE flag,
+      _mv_sw_det TYPE flag VALUE 'X'.
+
+    METHODS:
+      _change_switch
+        IMPORTING
+          i_sw_sum TYPE flag
+          i_sw_det TYPE flag.
 
 ENDCLASS.
 
@@ -119,15 +148,19 @@ CLASS lcl_main IMPLEMENTATION.
       WHEN p_detay.
         me->get_data_detay( ).
     ENDCASE.
-    me->filter_data( ).
+*    me->filter_data( ).
   ENDMETHOD.
 
-  METHOD get_data_from_mara.
+  METHOD get_data_from_material.
     "werks ve dat00 için burada ilk aldığımız veriler kısıtlanmalı mı??
-    SELECT mara~*
+    SELECT DISTINCT mara~matnr, marc~werks, mara~matkl, marc~dispo
         FROM mara
-        WHERE matnr IN @s_matnr
-          AND matkl IN @s_matkl
+        INNER JOIN marc ON marc~matnr EQ mara~matnr
+        WHERE mara~matnr IN @s_matnr
+          AND mara~matkl IN @s_matkl
+          AND marc~werks IN @s_werks
+          AND marc~dispo IN @s_dispo
+          AND marc~lvorm EQ ''
         INTO TABLE @rt_mara.
 
   ENDMETHOD.
@@ -140,8 +173,8 @@ CLASS lcl_main IMPLEMENTATION.
            mard~werks,
            SUM( mard~speme ) AS speme
         FROM mard
-        INNER JOIN @it_mara AS im ON im~matnr EQ mard~matnr
-        WHERE werks IN @s_werks
+        INNER JOIN @it_mara AS im ON im~matnr EQ mard~matnr AND
+                                     im~werks EQ mard~werks
         GROUP BY mard~matnr, mard~werks
         INTO CORRESPONDING FIELDS OF TABLE @rt_mard.
 
@@ -161,35 +194,39 @@ CLASS lcl_main IMPLEMENTATION.
 
 
   METHOD modify_data.
-    DATA : lv_matnr_tmp TYPE matnr.
 
     LOOP AT ct_data ASSIGNING FIELD-SYMBOL(<lfs_data>).
 
-      IF lv_matnr_tmp NE <lfs_data>-matnr.
-        <lfs_data>-bloke_stok = VALUE #( it_mard[ matnr = <lfs_data>-matnr werks = <lfs_data>-werks ]-speme OPTIONAL ).
-        <lfs_data>-stok_mik = <lfs_data>-stok_mik - <lfs_data>-bloke_stok.
-      ELSE.
-        <lfs_data>-emniyet_stok = 0.
-      ENDIF.
+      <lfs_data>-toplam_ihtiyac_mik = <lfs_data>-musteri_sip_mik
+                                     + <lfs_data>-rezervasyon_mik
+                                     + <lfs_data>-sat_cagri_mik
+                                     + <lfs_data>-sas_cagri_mik
+                                     + <lfs_data>-tp_cagri_mik
+                                     + <lfs_data>-teslimat_mik
+                                     + <lfs_data>-emniyet_stok
+                                     + <lfs_data>-birincil_ihtiyac.
 
-      <lfs_data>-fark = <lfs_data>-stok_mik
-                        + <lfs_data>-sas_mik
-                        - <lfs_data>-mng01.
+      <lfs_data>-toplam_giris = <lfs_data>-sat_mik
+                             + <lfs_data>-sas_mik
+                             + <lfs_data>-planli_sip_mik
+                             + <lfs_data>-uretim_sip_mik
+                             + <lfs_data>-stok_mik.
 
-      lv_matnr_tmp = <lfs_data>-matnr.
+      <lfs_data>-fark = <lfs_data>-toplam_giris
+                        - <lfs_data>-toplam_ihtiyac_mik.
+
+      <lfs_data>-status = COND #( WHEN <lfs_data>-fark GE 0
+                                    THEN mc_green
+                                  ELSE mc_red ).
+
     ENDLOOP.
 
-    SORT ct_data BY matnr dat00.
+    SORT ct_data BY matnr werks dat00.
 
   ENDMETHOD.
 
   METHOD filter_data.
-    DELETE mt_data WHERE mng01 EQ 0
-                     AND sat_mik EQ 0
-                     AND sas_mik EQ 0
-                     AND stok_mik EQ 0
-                     AND bloke_stok EQ 0
-                     AND emniyet_stok EQ 0.
+    DELETE mt_data WHERE toplam_giris EQ 0.
   ENDMETHOD.
 
   METHOD get_data_detay.
@@ -207,20 +244,21 @@ CLASS lcl_main IMPLEMENTATION.
            lt_mdezx TYPE STANDARD TABLE OF mdez.
     DATA : ls_mt61d TYPE mt61d.
 
-    DATA(lt_mara) = me->get_data_from_mara( ).
+    DATA : lv_matnr_tmp TYPE matnr.
+
+    DATA(lt_mara) = me->get_data_from_material( ).
     DATA(lt_mard) = me->get_data_from_mard( lt_mara ).
-    DATA(lt_makt) = me->get_data_from_makt( lt_mara ).
+*    DATA(lt_makt) = me->get_data_from_makt( lt_mara ).
 
     CHECK lt_mara IS NOT INITIAL.
-    CHECK line_exists( s_werks[ 1 ] ) AND s_werks[ 1 ]-low IS NOT INITIAL.
 
     LOOP AT lt_mara INTO DATA(ls_mara).
-      DATA(lv_werks) = VALUE werks_d( s_werks[ 1 ]-low OPTIONAL ).
 
       CALL FUNCTION 'MD_STOCK_REQUIREMENTS_LIST_API'
         EXPORTING
           matnr                    = ls_mara-matnr
-          werks                    = lv_werks
+          werks                    = ls_mara-werks
+          berid                    = p_berid2
 *         ergbz                    = 'SAP00003'
 *         afibz                    = 'SAP00002'
         IMPORTING
@@ -242,48 +280,70 @@ CLASS lcl_main IMPLEMENTATION.
         ENDIF.
 
         ls_data-matnr = ls_mara-matnr.
-        ls_data-matkl = ls_mara-matkl.
-        ls_data-meins = ls_mara-meins.
-        ls_data-maktx = VALUE #( lt_makt[ matnr = ls_mara-matnr ]-maktx OPTIONAL ).
-        ls_data-werks = s_werks[ 1 ]-low.
+        ls_data-matkl = ls_mt61d-matkl.
+        ls_data-dispo = ls_mt61d-dispo.
+        ls_data-meins = ls_mt61d-meins.
+        ls_data-maktx = ls_mt61d-maktx.
+        ls_data-werks = ls_mt61d-werks.
 
+        IF ls_mdpsx-dat00 IS NOT INITIAL.
         ls_data-dat00 = ls_mdpsx-dat00.
-        ls_data-donem = ls_mdpsx-dat00+0(6).
+        ELSE.
+        ls_data-dat00 = VALUE #( lt_mdezx[ delkz = 'WB' ]-dat00 OPTIONAL ).
+        ENDIF.
+        ls_data-week   = lcl_main=>date_get_week( ls_data-dat00 ).
 
         CASE ls_mdpsx-delkz.
+          WHEN 'VC'.
+            ls_data-musteri_sip_mik = ls_mdpsx-mng01.
+          WHEN 'MR' OR 'AR' OR 'SB'.
+            ls_data-rezervasyon_mik = ls_mdpsx-mng01.
+          WHEN 'U2'.
+            ls_data-sat_cagri_mik = ls_mdpsx-mng01.
+          WHEN 'U1'.
+            ls_data-sas_cagri_mik = ls_mdpsx-mng01.
+          WHEN 'U4'.
+            ls_data-tp_cagri_mik = ls_mdpsx-mng01.
+          WHEN 'VJ'.
+            ls_data-teslimat_mik = ls_mdpsx-mng01.
+*          WHEN 'SH'.
+*            ls_data-emniyet_stok = ls_mdpsx-mng01.
+          WHEN 'PP'.
+            ls_data-birincil_ihtiyac = ls_mdpsx-mng01.
+
           WHEN 'BA'.
             ls_data-sat_mik = ls_mdpsx-mng01.
-          WHEN 'BE'.
+          WHEN 'BE' OR 'LA'.
             ls_data-sas_mik = ls_mdpsx-mng01.
-            ls_data-delkz = ls_mdpsx-delkz.
-          WHEN 'LA'.
-            ls_data-sas_mik = ls_mdpsx-mng01.
-            ls_data-delkz = ls_mdpsx-delkz.
-          WHEN 'QM'.
-            ls_data-sas_mik = ls_mdpsx-mng01.
-            ls_data-delkz = ls_mdpsx-delkz.
-          WHEN 'SB'.
-            ls_data-mng01 = ls_mdpsx-mng01.
-            ls_data-delkz = ls_mdpsx-delkz.
-          WHEN 'WB'.
-            ls_data-stok_mik = ls_mdpsx-mng01.
-          WHEN 'AR'.
-            ls_data-mng01 = ls_mdpsx-mng01.
-            ls_data-delkz = ls_mdpsx-delkz.
+          WHEN 'PA'.
+            ls_data-planli_sip_mik = ls_mdpsx-mng01.
+          WHEN 'FE'.
+            ls_data-uretim_sip_mik = ls_mdpsx-mng01.
+*          WHEN 'WB'.
+*            ls_data-stok_mik = ls_mdpsx-mng01.
         ENDCASE.
 
-        READ TABLE lt_mdezx WITH KEY delkz = 'SH'
-             INTO DATA(ls_mdezx).
-        IF sy-subrc EQ 0.
-          ls_data-emniyet_stok = ls_mdezx-mng01.
+        ls_data-emniyet_stok = abs( VALUE #( lt_mdezx[ delkz = 'SH' ]-mng01 OPTIONAL ) ).
+        ls_data-stok_mik = VALUE #( lt_mdezx[ delkz = 'WB' ]-mng01 OPTIONAL ).
+
+        IF lv_matnr_tmp NE ls_data-matnr.
+        ELSE.
+          ls_data-emniyet_stok = 0.
+          ls_data-stok_mik = 0.
         ENDIF.
 
 
-        COLLECT ls_data INTO mt_data_ozet.
+        lv_matnr_tmp = ls_data-matnr.
+
+
         APPEND ls_data TO mt_data_detay.
 
-        CLEAR : ls_data, ls_mdezx.
+        CLEAR : ls_data-dat00 , ls_data-week,ls_data-status.
+        COLLECT ls_data INTO mt_data_ozet.
+
+        CLEAR : ls_data.
       ENDLOOP.
+      CLEAR : ls_mt61d, lt_mdpsx, lt_mdezx.
     ENDLOOP.
 
     me->modify_data( EXPORTING it_mard = lt_mard
@@ -292,6 +352,24 @@ CLASS lcl_main IMPLEMENTATION.
     me->modify_data( EXPORTING it_mard = lt_mard
                      CHANGING  ct_data = mt_data_detay ).
 
+  ENDMETHOD.
+
+  METHOD date_get_week.
+    CHECK i_date IS NOT INITIAL.
+
+    CALL FUNCTION 'DATE_GET_WEEK'
+      EXPORTING
+        date         = i_date
+      IMPORTING
+        week         = r_week
+      EXCEPTIONS
+        date_invalid = 1
+        OTHERS       = 2.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+        WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4
+        RAISING date_invalid.
+    ENDIF.
   ENDMETHOD.
 
 ENDCLASS.
@@ -312,17 +390,58 @@ CLASS lcl_event_handler IMPLEMENTATION.
       WHEN '&RNT'.
       WHEN '&F03' OR '&F12' OR '&F15' .
         LEAVE TO SCREEN 0.
-      WHEN 'EXPO'.
+      WHEN 'SUM'.
+        _change_switch( i_sw_det = '' i_sw_sum = 'X' ).
+        gr_main->get_data_ozet( ).
+
+        gr_report_view->build_fcat( EXPORTING i_str = lcl_report_view=>c_str_h
+                     CHANGING t_fcat = gr_report_view->gt_fcat ).
+
+        gr_report_view->gr_grid->set_frontend_fieldcatalog( it_fieldcatalog =  gr_report_view->gt_fcat ).
+
         gr_report_view->refresh_alv( ir_grid = gr_report_view->gr_grid ).
+
+        CALL METHOD cl_gui_cfw=>flush.
+      WHEN 'DET'.
+        _change_switch( i_sw_det = 'X' i_sw_sum = '' ).
+        gr_main->get_data_detay( ).
+
+        gr_report_view->build_fcat( EXPORTING i_str = lcl_report_view=>c_str_h
+                     CHANGING t_fcat = gr_report_view->gt_fcat ).
+
+        gr_report_view->gr_grid->set_frontend_fieldcatalog( it_fieldcatalog =  gr_report_view->gt_fcat ).
+
+        gr_report_view->refresh_alv( ir_grid = gr_report_view->gr_grid ).
+
+        CALL METHOD cl_gui_cfw=>flush.
     ENDCASE.
   ENDMETHOD.
 
   METHOD handle_toolbar.
 
+
+    APPEND LINES OF
+           VALUE ttb_button(
+                    ( butn_type = 3 )  " separator
+                    ( function = 'SUM' icon = icon_summarize
+                      text = TEXT-b01 quickinfo = TEXT-b02
+                      disabled = p_ozet )
+                    ( function = 'DET' icon = icon_detail
+                      text = TEXT-b03 quickinfo = TEXT-b04
+                      disabled = p_detay )
+           )
+         TO e_object->mt_toolbar.
+
   ENDMETHOD.
 
   METHOD after_refresh.
     gr_report_view->change_subtotals( ).
+  ENDMETHOD.
+
+  METHOD _change_switch.
+    p_ozet = i_sw_sum.
+    p_detay = i_sw_det.
+
   ENDMETHOD.
 
 ENDCLASS.
@@ -350,7 +469,7 @@ CLASS lcl_report_view IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD refresh_alv.
-    ir_grid->refresh_table_display( is_stable = VALUE #( row = 'X' col = 'X' )
+    ir_grid->refresh_table_display( is_stable = VALUE #( row = 'X' col = '' )
                                     i_soft_refresh = 'X' ).
   ENDMETHOD.
 
@@ -363,7 +482,6 @@ CLASS lcl_report_view IMPLEMENTATION.
     SET HANDLER gr_event_handler->handle_print_top_of_list FOR gr_grid.
     SET HANDLER gr_event_handler->handle_user_command FOR gr_grid.
     SET HANDLER gr_event_handler->handle_toolbar FOR gr_grid.
-    SET HANDLER gr_event_handler->after_refresh FOR gr_grid.
 
     gr_grid->set_table_for_first_display(
       EXPORTING
@@ -374,7 +492,6 @@ CLASS lcl_report_view IMPLEMENTATION.
         is_layout                     = VALUE #( zebra = 'X'
                                                  cwidth_opt = 'A'
                                                  sel_mode = 'A'
-*                                                 ctab_fname = 'LINE_COLOR'
                                                 )
         it_toolbar_excluding          = gs_toolbar_excluding
       CHANGING
@@ -392,8 +509,6 @@ CLASS lcl_report_view IMPLEMENTATION.
       MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
         WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
     ENDIF.
-
-    me->change_subtotals( ).
 
   ENDMETHOD .
 
@@ -441,6 +556,7 @@ CLASS lcl_report_view IMPLEMENTATION.
     CALL FUNCTION 'LVC_FIELDCATALOG_MERGE'
       EXPORTING
         i_structure_name       = i_str
+        i_bypassing_buffer     = abap_true
       CHANGING
         ct_fieldcat            = t_fcat
       EXCEPTIONS
@@ -452,28 +568,30 @@ CLASS lcl_report_view IMPLEMENTATION.
     ENDIF.
 
     LOOP AT t_fcat ASSIGNING FIELD-SYMBOL(<fs_fcat>).
+      CASE <fs_fcat>-domname.
+        WHEN 'MENGE'.
+*          <fs_fcat>-no_zero   = 'X'.
+*          <fs_fcat>-decimals_o = '0'.
+      ENDCASE.
+
       CASE <fs_fcat>-fieldname.
-        WHEN 'MNG01'.
-          <fs_fcat>-no_zero   = 'X'.
-          <fs_fcat>-decimals_o = '0'.
-        WHEN 'SAT_MIK'.
-          <fs_fcat>-no_zero   = 'X'.
-          <fs_fcat>-decimals_o = '0'.
-        WHEN 'SAS_MIK'.
-          <fs_fcat>-no_zero   = 'X'.
-          <fs_fcat>-decimals_o = '0'.
-        WHEN 'STOK_MIK'.
-          <fs_fcat>-no_zero   = 'X'.
-          <fs_fcat>-decimals_o = '0'.
-        WHEN 'BLOKE_STOK'.
-          <fs_fcat>-no_zero   = 'X'.
-          <fs_fcat>-decimals_o = '0'.
-        WHEN 'EMNIYET_STOK'.
-          <fs_fcat>-no_zero   = 'X'.
-          <fs_fcat>-decimals_o = '0'.
-        WHEN 'FARK'.
-          <fs_fcat>-no_zero   = 'X'.
-          <fs_fcat>-decimals_o = '0'.
+        WHEN 'DAT00' OR 'WEEK'.
+          IF p_ozet EQ 'X'.
+            <fs_fcat>-no_out = 'X'.
+          ELSE.
+            <fs_fcat>-no_out = ''.
+          ENDIF.
+        WHEN 'STATUS'.
+          m_set_coltext <fs_fcat> TEXT-s01.
+          <fs_fcat>-outputlen = 10.
+          IF p_ozet EQ 'X'.
+            <fs_fcat>-no_out = ''.
+          ELSE.
+            <fs_fcat>-no_out = 'X'.
+          ENDIF.
+        WHEN 'BLOKE_STOK' OR 'TP_CAGRI_MIK'.
+          <fs_fcat>-tech = 'X'.
+          <fs_fcat>-no_out = 'X'.
       ENDCASE.
     ENDLOOP.
 
@@ -486,14 +604,14 @@ CLASS lcl_report_view IMPLEMENTATION.
 
 
   METHOD _set_sort.
-*    DATA : ls_sort LIKE LINE OF gt_sort.
-*
-*    CLEAR : ls_sort, gt_sort.
-*    ls_sort-fieldname = 'KVGR2'.
-*    ls_sort-up = 'X'.
-*    ls_sort-spos = '1'.
-*    ls_sort-subtot = 'X'.
-*    APPEND ls_sort TO gt_sort.
+    DATA : ls_sort LIKE LINE OF gt_sort.
+
+    CLEAR : ls_sort, gt_sort.
+    ls_sort-fieldname = 'MATNR'.
+    ls_sort-up = 'X'.
+    ls_sort-spos = '1'.
+    ls_sort-subtot = 'X'.
+    APPEND ls_sort TO gt_sort.
 *
   ENDMETHOD.
 

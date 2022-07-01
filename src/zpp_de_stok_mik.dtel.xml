@@ -18,6 +18,19 @@
     <DTELMASTER>T</DTELMASTER>
     <REFKIND>D</REFKIND>
    </DD04V>
+   <I18N_LANGS>
+    <LANGU>E</LANGU>
+   </I18N_LANGS>
+   <DD04_TEXTS>
+    <item>
+     <DDLANGUAGE>E</DDLANGUAGE>
+     <DDTEXT>Stock Qty</DDTEXT>
+     <REPTEXT>Stock Qty</REPTEXT>
+     <SCRTEXT_S>Stock Qty</SCRTEXT_S>
+     <SCRTEXT_M>Stock Qty</SCRTEXT_M>
+     <SCRTEXT_L>Stock Qty</SCRTEXT_L>
+    </item>
+   </DD04_TEXTS>
   </asx:values>
  </asx:abap>
 </abapGit>
